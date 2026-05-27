@@ -20,6 +20,7 @@ from mdclogpy import Logger
 from src.exceptions import NoDataError
 from influxdb.exceptions import InfluxDBClientError, InfluxDBServerError
 from requests.exceptions import RequestException
+import json
 import pandas as pd
 import time
 
@@ -70,7 +71,17 @@ class DATABASE(object):
         query = """select * from {}""".format(meas)
         query += """ where "{}" = \'{}\'""".format(param, Id)
         query += "  ORDER BY DESC LIMIT {}".format(limit)
+        # Phase 6 Layer B patch B4 — per-scan timing emitted as one-line JSON for
+        # the matrix collector when driver=rmr (qp-rmr-emitter triggers this path).
+        _t0 = time.perf_counter()
         self.query(query, meas, Id)
+        _rowcount = 0 if self.data is None else len(self.data)
+        print(json.dumps({"event": "qp_scan",
+                          "driver": "rmr",
+                          "cellid": str(Id) if cellid else None,
+                          "ueid": str(Id) if ueid else None,
+                          "rowcount": _rowcount,
+                          "elapsed_ms": round((time.perf_counter() - _t0) * 1000.0, 3)}), flush=True)
 
     def query(self, query, meas, Id=False):
         try:
