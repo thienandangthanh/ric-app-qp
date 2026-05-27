@@ -98,6 +98,14 @@ class DATABASE(object):
         except (RequestException, InfluxDBClientError, InfluxDBServerError):
             logger.error("Failed to connect to influxdb")
 
+        except ValueError as e:
+            # influxdb-python DataFrameClient pandas strptime trips when
+            # InfluxDB returns a whole-second timestamp without microseconds.
+            # Treat as no-data so the predict handler keeps draining the
+            # RMR receive queue instead of crashing the event loop.
+            logger.warning("InfluxDB timestamp parse failed: {}".format(e))
+            self.data = None
+
         except NoDataError:
             self.data = None
             if Id:
