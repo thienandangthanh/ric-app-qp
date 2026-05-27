@@ -1,4 +1,8 @@
-# static route table to direct messages sent by mock QP xApp
+# In-lab routing: mtype 30002 (TS_QOE_PREDICTION) has no real consumer in the
+# docker-compose chain. Routing it back to QP's own listener lets qp_default_handler
+# drop it silently; the alternative (an unresolvable kubernetes service DNS)
+# blocks QP's event loop on getaddrinfo timeouts so subsequent inbound 30000s
+# never get processed.
 newrt|start
-rte|30002|service-ricxapp-trafficxapp-rmr.ricxapp.svc.cluster.local:4560
+rte|30002|qp:4560
 newrt|end

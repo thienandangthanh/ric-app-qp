@@ -21,7 +21,10 @@ setup(
     packages=find_packages(exclude=["tests.*", "tests"]),
     description="Quality-of-Service Predictor Xapp for Traffic Steering",
     url="https://gerrit.o-ran-sc.org/r/admin/repos/ric-app/qp",
-    install_requires=["ricxappframe==3.2.2", "joblib>=0.3.2", "statsmodels>=0.11.1", "mdclogpy<=1.1.1", "influxdb", "pandas==1.5.3", "scikit-learn", "schedule", "joblib"],
+    # numpy<2 pin: pandas==1.5.3 wheels were built against the pre-NEP 50
+    # numpy ABI; without the pin, ricxappframe pulls numpy>=2 and import
+    # fails with "numpy.dtype size changed, may indicate binary incompatibility".
+    install_requires=["ricxappframe==3.2.2", "joblib>=0.3.2", "statsmodels>=0.11.1", "mdclogpy<=1.1.1", "influxdb", "numpy<2", "pandas==1.5.3", "scikit-learn", "schedule", "joblib"],
     entry_points={"console_scripts": ["run-qp.py=src.main:start"]},  # adds a magical entrypoint for Docker
     license="Apache 2.0",
     data_files=[("", ["LICENSE.txt"])],

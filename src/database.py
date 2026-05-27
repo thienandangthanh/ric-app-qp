@@ -68,8 +68,12 @@ class DATABASE(object):
             limit = 1
             Id = ueid
 
+        # Naive variant stores Viavi_UE_id and Viavi_NrCgi as float fields, not
+        # tags. InfluxQL single-quoted literals are string-typed; the upstream
+        # quoting yields a type mismatch and 0 matches. Unquoted numeric literal
+        # is correct for both ueid and cellid predicates here.
         query = """select * from {}""".format(meas)
-        query += """ where "{}" = \'{}\'""".format(param, Id)
+        query += """ where "{}" = {}""".format(param, Id)
         query += "  ORDER BY DESC LIMIT {}".format(limit)
         # Phase 6 Layer B patch B4 — per-scan timing emitted as one-line JSON for
         # the matrix collector when driver=rmr (qp-rmr-emitter triggers this path).
