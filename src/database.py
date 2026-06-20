@@ -68,12 +68,17 @@ class DATABASE(object):
             limit = 1
             Id = ueid
 
-        # Naive variant stores Viavi_UE_id and Viavi_NrCgi as float fields, not
-        # tags. InfluxQL single-quoted literals are string-typed; the upstream
-        # quoting yields a type mismatch and 0 matches. Unquoted numeric literal
-        # is correct for both ueid and cellid predicates here.
+        # Naive variant stores Viavi_UE_id and Viavi_NrCgi as float fields —
+        # unquoted numeric literal is correct (InfluxQL single-quoted literals
+        # are string-typed, causing a type mismatch and 0 rows against fields).
+        # Tagged variant promotes these identifiers to InfluxDB tags (string-
+        # typed); the predicate must use a single-quoted string literal.
+        # id_is_tag is set per-variant in the .ini config (true=tagged, false=naive).
         query = """select * from {}""".format(meas)
-        query += """ where "{}" = {}""".format(param, Id)
+        if self.id_is_tag:
+            query += """ where "{}" = '{}'""".format(param, Id)
+        else:
+            query += """ where "{}" = {}""".format(param, Id)
         query += "  ORDER BY DESC LIMIT {}".format(limit)
         # Phase 6 Layer B patch B4 — per-scan timing emitted as one-line JSON for
         # the matrix collector when driver=rmr (qp-rmr-emitter triggers this path).
@@ -130,6 +135,9 @@ class DATABASE(object):
     def config(self):
         cfg = ConfigParser()
         cfg.read('src/qp_config.ini')
+        # Default to False (Naive behaviour) so the flag is optional in old .ini
+        # files that pre-date Stage 3; Tagged .ini explicitly sets id_is_tag=true.
+        self.id_is_tag = False
         for section in cfg.sections():
             if section == 'influxdb':
                 self.host = cfg.get(section, "host")
@@ -141,6 +149,11 @@ class DATABASE(object):
                 self.dbname = cfg.get(section, "database")
                 self.cellmeas = cfg.get(section, "cellmeas")
                 self.uemeas = cfg.get(section, "uemeas")
+                # Phase 2 Stage 3: Tagged variant promotes UE/cell ids to tags
+                # (string-typed). id_is_tag=true → single-quoted predicate literal.
+                # id_is_tag=false (default/naive) → unquoted numeric literal.
+                if cfg.has_option(section, "id_is_tag"):
+                    self.id_is_tag = cfg.getboolean(section, "id_is_tag")
 
             if section == 'features':
                 self.thptparam = [cfg.get(section, "thptUL"), cfg.get(section, "thptDL")]
